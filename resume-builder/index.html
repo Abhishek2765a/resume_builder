@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ResumeCraft — Modern ATS-Friendly Resume Builder</title>
+  <meta name="description" content="Build professional, ATS-optimized, high-impact resumes in minutes with live preview, multiple templates, and PDF export.">
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+            }
+          },
+          fontSize: {
+            '2xs': '0.6875rem'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- html2pdf.js for Client-Side Direct PDF Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="h-full flex flex-col font-sans selection:bg-blue-600 selection:text-white antialiased overflow-hidden">
+
+  <!-- ==================================================== -->
+  <!-- Header / Navigation Bar                              -->
+  <!-- ==================================================== -->
+  <header id="app-header" class="h-14 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 sm:px-6 z-30 flex-shrink-0">
+    <!-- Brand Logo -->
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/20 text-white font-black text-lg">
+        R
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="font-extrabold tracking-tight text-white text-base">Resume<span class="text-blue-500">Craft</span></span>
+          <span class="text-2xs font-semibold uppercase px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">PRO</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center: Sample Presets Quick Loader -->
+    <div class="hidden lg:flex items-center gap-2">
+      <span class="text-xs text-slate-400 font-medium">Load Preset:</span>
+      <div class="flex items-center gap-1 bg-slate-800/80 p-1 rounded-lg border border-slate-700/60 text-xs">
+        <button type="button" class="preset-select-btn px-2.5 py-1 rounded hover:bg-slate-700 text-slate-200 transition-colors" data-preset="software_engineer">💻 Software Eng</button>
+        <button type="button" class="preset-select-btn px-2.5 py-1 rounded hover:bg-slate-700 text-slate-200 transition-colors" data-preset="product_manager">📊 Product Mgr</button>
+        <button type="button" class="preset-select-btn px-2.5 py-1 rounded hover:bg-slate-700 text-slate-200 transition-colors" data-preset="designer">🎨 UI/UX Designer</button>
+        <button type="button" class="preset-select-btn px-2.5 py-1 rounded hover:bg-slate-700 text-slate-200 transition-colors" data-preset="data_scientist">🧠 AI / Data Sci</button>
+        <button type="button" class="preset-select-btn px-2.5 py-1 rounded hover:bg-red-500/20 hover:text-red-300 text-slate-400 transition-colors" data-preset="blank">Clear All</button>
+      </div>
+    </div>
+
+    <!-- Right Controls: ATS Meter & Export Buttons -->
+    <div class="flex items-center gap-2.5">
+      <!-- ATS Score Badge Button -->
+      <button id="btn-open-ats" type="button" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700/80 border border-slate-700 transition-all text-xs font-semibold group cursor-pointer shadow-sm">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span class="text-slate-300">ATS Score:</span>
+        <span id="ats-nav-score" class="font-bold text-emerald-400 font-mono">92/100</span>
+        <span class="text-2xs text-slate-400 group-hover:text-blue-400 transition-colors">Audit ↗</span>
+      </button>
+
+      <!-- Import JSON -->
+      <button id="btn-trigger-import" type="button" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 transition-colors" title="Import JSON resume file">
+        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+        Import
+      </button>
+      <input type="file" id="import-json-input" accept=".json" class="hidden">
+
+      <!-- Export JSON -->
+      <button id="btn-export-json" type="button" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 transition-colors" title="Export JSON resume backup">
+        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        Save JSON
+      </button>
+
+      <!-- Print Button -->
+      <button id="btn-print-resume" type="button" class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 transition-colors" title="Open Browser Print Dialog">
+        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+        Print
+      </button>
+
+      <!-- Download PDF Primary Button -->
+      <button id="btn-download-pdf" type="button" class="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-all shadow-md shadow-blue-600/30 active:scale-95 cursor-pointer">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        Download PDF
+      </button>
+    </div>
+  </header>
+
+  <!-- Mobile View Switcher Tab Bar -->
+  <div class="lg:hidden bg-slate-900 border-b border-slate-800 flex items-center justify-around p-1 text-xs font-semibold">
+    <button id="mobile-tab-editor" class="flex-1 py-1.5 text-center rounded bg-blue-600 text-white transition-colors">Editor Form</button>
+    <button id="mobile-tab-preview" class="flex-1 py-1.5 text-center rounded text-slate-300 hover:text-white transition-colors">Live A4 Preview</button>
+  </div>
+
+  <!-- ==================================================== -->
+  <!-- Split Workspace: Left Editor + Right Live Preview     -->
+  <!-- ==================================================== -->
+  <div class="flex-1 flex overflow-hidden relative">
+
+    <!-- ================================================== -->
+    <!-- LEFT PANEL: Editor & Design Controls (Scrollable)   -->
+    <!-- ================================================== -->
+    <aside id="editor-panel" class="w-full lg:w-1/2 xl:w-[48%] h-full bg-slate-900/95 border-r border-slate-800 flex flex-col z-10 flex-shrink-0">
+      
+      <!-- Top Sub-Bar: Template Picker Carousel -->
+      <div class="p-3 bg-slate-950/60 border-b border-slate-800">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-2xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+            <svg class="w-3 h-3 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+            Select Layout Template
+          </span>
+          <span class="text-2xs text-slate-500">5 High-Impact Designs</span>
+        </div>
+        <div class="grid grid-cols-5 gap-1.5">
+          <button type="button" class="template-btn p-2 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-center transition-all group" data-template="modern">
+            <div class="h-6 w-full rounded bg-blue-500/20 border border-blue-500/30 mb-1 flex items-center justify-center text-blue-400 text-2xs font-bold">TOP</div>
+            <div class="text-2xs font-semibold text-slate-300 group-hover:text-white">Modern</div>
+          </button>
+          <button type="button" class="template-btn p-2 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-center transition-all group" data-template="classic">
+            <div class="h-6 w-full rounded bg-indigo-500/20 border border-indigo-500/30 mb-1 flex items-center justify-center text-indigo-400 text-2xs font-serif font-bold">EXEC</div>
+            <div class="text-2xs font-semibold text-slate-300 group-hover:text-white">Classic</div>
+          </button>
+          <button type="button" class="template-btn p-2 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-center transition-all group" data-template="minimal">
+            <div class="h-6 w-full rounded bg-teal-500/20 border border-teal-500/30 mb-1 flex items-center justify-center text-teal-400 text-2xs font-mono font-bold">NORD</div>
+            <div class="text-2xs font-semibold text-slate-300 group-hover:text-white">Minimal</div>
+          </button>
+          <button type="button" class="template-btn p-2 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-center transition-all group" data-template="creative">
+            <div class="h-6 w-full rounded bg-purple-500/20 border border-purple-500/30 mb-1 flex items-center justify-center text-purple-400 text-2xs font-bold">2-COL</div>
+            <div class="text-2xs font-semibold text-slate-300 group-hover:text-white">Creative</div>
+          </button>
+          <button type="button" class="template-btn p-2 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 text-center transition-all group" data-template="academic">
+            <div class="h-6 w-full rounded bg-amber-500/20 border border-amber-500/30 mb-1 flex items-center justify-center text-amber-400 text-2xs font-serif font-bold">IVY</div>
+            <div class="text-2xs font-semibold text-slate-300 group-hover:text-white">Academic</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Styling & Aesthetics Customizer Accordion -->
+      <div class="px-4 py-2.5 bg-slate-900 border-b border-slate-800 text-xs">
+        <details class="group">
+          <summary class="flex items-center justify-between cursor-pointer list-none text-slate-300 font-semibold select-none">
+            <span class="flex items-center gap-2">
+              <svg class="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
+              Theme, Colors & Typography Options
+            </span>
+            <span class="text-2xs text-blue-400 group-open:rotate-180 transition-transform">▼</span>
+          </summary>
+          <div class="pt-3 pb-1 grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-800/80 mt-2">
+            <!-- Palette Swatches -->
+            <div>
+              <label class="input-label">Accent Color Theme</label>
+              <div class="flex items-center gap-2">
+                <div id="color-palettes-container" class="flex items-center gap-1.5 flex-wrap"></div>
+                <input type="color" id="custom-color-input" class="w-7 h-7 rounded cursor-pointer bg-transparent border-0" title="Custom Color">
+              </div>
+            </div>
+
+            <!-- Typography Pairing -->
+            <div>
+              <label class="input-label">Font Family</label>
+              <select id="font-family-select" class="input-field text-xs py-1"></select>
+            </div>
+
+            <!-- Font Size Scaling -->
+            <div>
+              <label class="input-label">Font Size</label>
+              <select id="font-size-select" class="input-field text-xs py-1">
+                <option value="small">Compact (12.5px - Fit 1 Page)</option>
+                <option value="medium" selected>Standard (14px - Recommended)</option>
+                <option value="large">Large (15.5px - High Readability)</option>
+              </select>
+            </div>
+
+            <!-- Spacing Density -->
+            <div>
+              <label class="input-label">Layout Spacing Density</label>
+              <select id="spacing-select" class="input-field text-xs py-1">
+                <option value="compact">Tight (More Content per Page)</option>
+                <option value="normal" selected>Balanced / Standard</option>
+                <option value="spacious">Spacious (Relaxed Whitespace)</option>
+              </select>
+            </div>
+
+            <!-- Photo Toggle -->
+            <div class="sm:col-span-2 flex items-center justify-between pt-1 border-t border-slate-800/60">
+              <span class="text-xs text-slate-300">Display Profile Photo on Resume</span>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="toggle-show-photo" class="sr-only peer" checked>
+                <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <!-- Navigation Tabs (Profile, Exp, Edu, Skills, Projects, etc.) -->
+      <nav class="flex items-center overflow-x-auto bg-slate-950 px-2 py-1.5 border-b border-slate-800 gap-1 text-xs font-semibold flex-shrink-0 scrollbar-none">
+        <button type="button" class="editor-tab active px-3 py-1.5 rounded-lg text-slate-400 hover:text-white whitespace-nowrap transition-colors" data-tab="personal">👤 Profile</button>
+        <button type="button" class="editor-tab px-3 py-1.5 rounded-lg text-slate-400 hover:text-white whitespace-nowrap transition-colors" data-tab="experience">💼 Experience</button>
+        <button type="button" class="editor-tab px-3 py-1.5 rounded-lg text-slate-400 hover:text-white whitespace-nowrap transition-colors" data-tab="skills">⚡ Skills</button>
+        <button type="button" class="editor-tab px-3 py-1.5 rounded-lg text-slate-400 hover:text-white whitespace-nowrap transition-colors" data-tab="education">🎓 Education</button>
+        <button type="button" class="editor-tab px-3 py-1.5 rounded-lg text-slate-400 hover:text-white whitespace-nowrap transition-colors" data-tab="projects">🚀 Projects</button>
+        <button type="button" class="editor-tab px-3 py-1.5 rounded-lg text-slate-400 hover:text-white whitespace-nowrap transition-colors" data-tab="certifications">🏆 Extras</button>
+      </nav>
+
+      <!-- Scrollable Tab Panels Container -->
+      <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+
+        <!-- ============================================== -->
+        <!-- TAB 1: Personal & Contact Profile              -->
+        <!-- ============================================== -->
+        <div id="tab-personal" class="tab-panel space-y-4">
+          <!-- Avatar & Basic Info -->
+          <div class="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-xl bg-slate-800/50 border border-slate-700/60">
+            <div class="relative w-20 h-20 rounded-xl bg-slate-900 border-2 border-dashed border-slate-700 flex items-center justify-center overflow-hidden group flex-shrink-0">
+              <img id="photo-avatar-preview" src="" alt="Avatar" class="w-full h-full object-cover hidden">
+              <div class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 hover:text-white cursor-pointer bg-slate-900/60 transition-opacity">
+                <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                <span class="text-2xs font-semibold">Upload</span>
+              </div>
+              <input type="file" id="photo-upload-input" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer">
+            </div>
+            <div class="flex-1 text-center sm:text-left">
+              <h3 class="text-sm font-bold text-white mb-0.5">Profile Photo</h3>
+              <p class="text-xs text-slate-400 mb-2">Upload a professional headshot (PNG, JPG, WebP).</p>
+              <button type="button" id="remove-photo-btn" class="text-2xs text-red-400 hover:text-red-300 font-medium">Remove photo</button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="input-label">Full Name *</label>
+              <input type="text" id="input-fullName" class="input-field font-semibold" placeholder="e.g. Alex Vance">
+            </div>
+            <div>
+              <label class="input-label">Professional Job Title *</label>
+              <input type="text" id="input-jobTitle" class="input-field" placeholder="e.g. Senior Full Stack Engineer">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="input-label">Email Address *</label>
+              <input type="email" id="input-email" class="input-field" placeholder="e.g. alex@example.com">
+            </div>
+            <div>
+              <label class="input-label">Phone Number *</label>
+              <input type="tel" id="input-phone" class="input-field" placeholder="e.g. +1 (555) 019-2834">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label class="input-label">Location (City, State/Country)</label>
+              <input type="text" id="input-location" class="input-field" placeholder="e.g. San Francisco, CA">
+            </div>
+            <div>
+              <label class="input-label">Website / Portfolio</label>
+              <input type="url" id="input-website" class="input-field" placeholder="e.g. alexvance.dev">
+            </div>
+            <div>
+              <label class="input-label">LinkedIn Handle</label>
+              <input type="text" id="input-linkedin" class="input-field" placeholder="e.g. linkedin.com/in/alexvance">
+            </div>
+          </div>
+
+          <div>
+            <label class="input-label">GitHub or Dribbble Profile</label>
+            <input type="text" id="input-github" class="input-field" placeholder="e.g. github.com/alexvance">
+          </div>
+
+          <!-- Professional Summary with Smart Suggestions -->
+          <div class="pt-2">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-1.5 gap-2">
+              <label class="input-label mb-0">Professional Summary / Objective</label>
+              <select id="summary-preset-select" class="text-2xs bg-slate-800 border border-slate-700 text-blue-400 rounded px-2 py-1 outline-none"></select>
+            </div>
+            <textarea id="input-summary" rows="4" class="input-field leading-relaxed text-xs" placeholder="Summarize your key qualifications, years of experience, core domains, and major measurable achievements..."></textarea>
+            
+            <!-- Quick Action Verb Inserters -->
+            <div class="mt-2">
+              <span class="text-2xs text-slate-400 block mb-1">⚡ Quick Action Verbs to boost ATS:</span>
+              <div id="action-verbs-chips" class="flex flex-wrap gap-1"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- TAB 2: Experience                             -->
+        <!-- ============================================== -->
+        <div id="tab-experience" class="tab-panel hidden space-y-4">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+            <div>
+              <h3 class="text-sm font-bold text-white">Work Experience</h3>
+              <p class="text-xs text-slate-400">Add your previous roles, accomplishments, and quantifiable impact.</p>
+            </div>
+            <button type="button" id="btn-add-experience" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-colors flex items-center gap-1 shadow-sm">
+              <span>+ Add Position</span>
+            </button>
+          </div>
+
+          <div id="experience-list" class="space-y-4"></div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- TAB 3: Skills                                  -->
+        <!-- ============================================== -->
+        <div id="tab-skills" class="tab-panel hidden space-y-4">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+            <div>
+              <h3 class="text-sm font-bold text-white">Skills & Competencies</h3>
+              <p class="text-xs text-slate-400">Organize your skills by domain (e.g. Languages, Frameworks, Tools).</p>
+            </div>
+            <button type="button" id="btn-add-skill-group" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-colors flex items-center gap-1 shadow-sm">
+              <span>+ Add Category</span>
+            </button>
+          </div>
+
+          <div id="skills-list" class="space-y-4"></div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- TAB 4: Education                              -->
+        <!-- ============================================== -->
+        <div id="tab-education" class="tab-panel hidden space-y-4">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+            <div>
+              <h3 class="text-sm font-bold text-white">Education & Degrees</h3>
+              <p class="text-xs text-slate-400">List your universities, degrees, and academic honors.</p>
+            </div>
+            <button type="button" id="btn-add-education" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-colors flex items-center gap-1 shadow-sm">
+              <span>+ Add Education</span>
+            </button>
+          </div>
+
+          <div id="education-list" class="space-y-4"></div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- TAB 5: Projects                               -->
+        <!-- ============================================== -->
+        <div id="tab-projects" class="tab-panel hidden space-y-4">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+            <div>
+              <h3 class="text-sm font-bold text-white">Featured Projects & Open Source</h3>
+              <p class="text-xs text-slate-400">Highlight standalone applications, research, or GitHub repos.</p>
+            </div>
+            <button type="button" id="btn-add-project" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-colors flex items-center gap-1 shadow-sm">
+              <span>+ Add Project</span>
+            </button>
+          </div>
+
+          <div id="projects-list" class="space-y-4"></div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- TAB 6: Certifications & Languages & Custom     -->
+        <!-- ============================================== -->
+        <div id="tab-certifications" class="tab-panel hidden space-y-6">
+          <!-- Certifications -->
+          <div class="space-y-3">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+              <h3 class="text-sm font-bold text-white">Licenses & Certifications</h3>
+              <button type="button" id="btn-add-cert" class="text-xs text-blue-400 hover:text-blue-300 font-semibold">+ Add Cert</button>
+            </div>
+            <div id="certifications-list" class="space-y-3"></div>
+          </div>
+
+          <!-- Languages -->
+          <div class="space-y-3 pt-2">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+              <h3 class="text-sm font-bold text-white">Languages</h3>
+              <button type="button" id="btn-add-lang" class="text-xs text-blue-400 hover:text-blue-300 font-semibold">+ Add Language</button>
+            </div>
+            <div id="languages-list" class="space-y-2"></div>
+          </div>
+
+          <!-- Custom Sections -->
+          <div class="space-y-3 pt-2">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+              <h3 class="text-sm font-bold text-white">Custom Sections (Awards, Publications, etc.)</h3>
+              <button type="button" id="btn-add-custom-sec" class="text-xs text-blue-400 hover:text-blue-300 font-semibold">+ Add Section</button>
+            </div>
+            <div id="custom-sections-list" class="space-y-4"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Editor Footer Status & Reset -->
+      <div class="p-3 bg-slate-950 border-t border-slate-800 flex items-center justify-between text-2xs text-slate-400 flex-shrink-0">
+        <span class="flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-green-500"></span>
+          Auto-saved to local browser storage
+        </span>
+        <button type="button" id="btn-reset-data" class="hover:text-red-400 transition-colors">Reset to Demo Data</button>
+      </div>
+
+    </aside>
+
+    <!-- ================================================== -->
+    <!-- RIGHT PANEL: Live A4 Preview Canvas                 -->
+    <!-- ================================================== -->
+    <main id="preview-viewport" class="flex-1 h-full bg-slate-950/90 overflow-y-auto overflow-x-hidden p-6 sm:p-10 flex flex-col items-center relative">
+      
+      <!-- Floating Preview Zoom Toolbar -->
+      <div id="preview-toolbar" class="sticky top-0 z-20 mb-6 bg-slate-900/90 backdrop-blur-md px-4 py-2 rounded-full border border-slate-700/80 shadow-2xl flex items-center gap-3 text-xs select-none">
+        <button id="zoom-out-btn" type="button" class="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 hover:text-white transition-colors" title="Zoom Out">−</button>
+        <span id="zoom-percentage" class="font-mono text-slate-300 font-bold w-12 text-center">85%</span>
+        <button id="zoom-in-btn" type="button" class="w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 hover:text-white transition-colors" title="Zoom In">+</button>
+        <div class="h-4 w-px bg-slate-700 mx-1"></div>
+        <button id="zoom-fit-btn" type="button" class="px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors font-medium">Fit Width</button>
+      </div>
+
+      <!-- The A4 Sheet Paper Wrapper (Transformed for Zoom) -->
+      <div id="resume-paper-wrapper" class="resume-paper-wrapper">
+        <div id="resume-paper" class="resume-paper rounded-sm">
+          <!-- Page 1 Break Indicator Marker -->
+          <div class="page-break-indicator"></div>
+          
+          <!-- Master Resume Dynamic Template Output -->
+          <div id="resume-container"></div>
+        </div>
+      </div>
+      
+    </main>
+
+  </div>
+
+  <!-- ==================================================== -->
+  <!-- ATS Optimizer & Score Modal                          -->
+  <!-- ==================================================== -->
+  <div id="ats-modal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5 animate-fade-in">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-blue-600/20 text-blue-400 border border-blue-500/30 flex items-center justify-center font-bold">
+            ATS
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white">Applicant Tracking System Audit</h3>
+            <p class="text-xs text-slate-400">Algorithmic scan of keyword density & layout readability</p>
+          </div>
+        </div>
+        <button id="btn-close-ats" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+      </div>
+
+      <!-- Score Ring Summary -->
+      <div class="flex items-center gap-5 p-4 rounded-xl bg-slate-950/80 border border-slate-800">
+        <div class="text-center">
+          <div class="text-3xl font-black font-mono text-emerald-400" id="ats-modal-score">92</div>
+          <div class="text-2xs text-slate-500 font-bold uppercase">Score / 100</div>
+        </div>
+        <div class="flex-1">
+          <div id="ats-modal-rating" class="text-sm font-bold text-emerald-400 mb-1">Outstanding (ATS Ready)</div>
+          <p class="text-xs text-slate-400 leading-normal">Your resume contains rich action verbs, quantified results, complete contact channels, and standard headings.</p>
+        </div>
+      </div>
+
+      <!-- Category Breakdown -->
+      <div class="space-y-1">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Category Score Breakdown</h4>
+        <div id="ats-modal-checks" class="space-y-1 bg-slate-950/60 p-3 rounded-xl border border-slate-800"></div>
+      </div>
+
+      <!-- Key Recommendations -->
+      <div class="space-y-2">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">High-Impact Optimization Tips</h4>
+        <div id="ats-modal-suggestions" class="space-y-2"></div>
+      </div>
+
+      <div class="pt-2 text-right">
+        <button type="button" onclick="document.getElementById('ats-modal').classList.add('hidden')" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-colors">
+          Got it, Close Audit
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main JavaScript Bundle -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
